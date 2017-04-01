@@ -23,8 +23,8 @@ var colors = [];
 // Spherical coordinate angles for rotating the cube
 // Distinguished with THETA_START and PHI_START, which are for the camera
 // dPHI and dTHETA are the incremental angles to add to THETA and PHI while rotating
-var THETA = radians(0);
-var PHI = radians(0);
+var THETA = radians(45);
+var PHI = radians(45);
 var dTHETA = 0;
 var dPHI = 0;
 
@@ -39,14 +39,10 @@ var cameraRadius = 20.0;
 var cameraRadiusMin = 12.5;
 var cameraRadiusMax = 50.0;
 
-// Fixed angles for lookAt
-var THETA_START = radians(45);
-var PHI_START = radians(45);
-
 // For the lookAt function (model-view matrix)
-var eye = vec3(cameraRadius*Math.sin(PHI_START)*Math.sin(THETA_START),
-            cameraRadius*Math.cos(PHI_START),
-            cameraRadius*Math.sin(PHI_START)*Math.cos(THETA_START));
+var eye = vec3(cameraRadius*Math.sin(PHI)*Math.sin(THETA),
+            cameraRadius*Math.cos(PHI),
+            cameraRadius*Math.sin(PHI)*Math.cos(THETA));
 var at = vec3(0.0, 0.0, 0.0); // point camera towards origin
 var up = vec3(0.0, 1.0, 0.0); // positive y-axis
 
@@ -234,7 +230,17 @@ window.onload = function init()
         dTHETA = (e.pageX-startX)*2*Math.PI/canvas.width;
         dPHI = (e.pageY-startY)*2*Math.PI/canvas.height;
 
-        THETA = (THETA-dTHETA)%(2*Math.PI);
+        // From degrees(PHI) E [-180, 0] U [180, 360], the up vector begins to point in
+        // the opposite direction and the cube flips to preserve the up direction.
+        // We don't want this to happen, so we flip the up vector when this happens
+        // (also changes direction of rotation for THETA).
+        if ((PHI > Math.PI && PHI < 2*Math.PI) || (PHI < 0 && PHI > -Math.PI)) {
+            up = vec3(0.0, -1.0, 0.0);
+            THETA = (THETA+dTHETA)%(2*Math.PI);
+        } else {
+            up = vec3(0.0, 1.0, 0.0);
+            THETA = (THETA-dTHETA)%(2*Math.PI);
+        }
         PHI = (PHI-dPHI)%(2*Math.PI);
 
         // Save ending position as next starting position
@@ -621,9 +627,9 @@ function render()
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // Set the camera position at each render (spherical coordinates)
-    eye = vec3(cameraRadius*Math.sin(PHI_START)*Math.sin(THETA_START),
-                cameraRadius*Math.cos(PHI_START),
-                cameraRadius*Math.sin(PHI_START)*Math.cos(THETA_START));
+    eye = vec3(cameraRadius*Math.sin(PHI)*Math.sin(THETA),
+            cameraRadius*Math.cos(PHI),
+            cameraRadius*Math.sin(PHI)*Math.cos(THETA));
 
     // World view matrix (involves translates and rotates for each cubelet)
     // Initialize to identity matrix
@@ -633,18 +639,18 @@ function render()
     if (!heldDown) {
         dTHETA *= AMORTIZATION;
         dPHI *= AMORTIZATION
-        THETA = (THETA-dTHETA)%(2*Math.PI);
+        if ((PHI > Math.PI && PHI < 2*Math.PI) || (PHI < 0 && PHI > -Math.PI)) {
+            up = vec3(0.0, -1.0, 0.0);
+            THETA = (THETA+dTHETA)%(2*Math.PI);
+        } else {
+            up = vec3(0.0, 1.0, 0.0);
+            THETA = (THETA-dTHETA)%(2*Math.PI);
+        }
         PHI = (PHI-dPHI)%(2*Math.PI);
     }
     
     // Model-view matrix
-    // Includes the rotation matrix for rotating the whole cube
     modelViewMatrix = mat4();
-    // PHI is change in Y plane, so rotate about X
-    modelViewMatrix = mult(rotateY(degrees(THETA)), modelViewMatrix);
-    // THETA is change in X plane, so rotate about Y
-    modelViewMatrix = mult(rotateX(degrees(PHI)), modelViewMatrix);
-    // Position camera
     modelViewMatrix = mult(lookAt(eye, at, up), modelViewMatrix);
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix));
 
@@ -724,10 +730,8 @@ function render()
                     }
                 }
 
-                // Now modify the world-view matrix to account for this additional rotation
+                // Now modify the world-view matrix to account for this additional cubelet rotation
                 worldViewMatrix = mult(cubeletMatrix[x+1][y+1][z+1], worldViewMatrix);
-
-                // Modify the world view matrix to account for rotation of ENTIRE CUBE
                 gl.uniformMatrix4fv(worldViewMatrixLoc, false, flatten(worldViewMatrix));
 
                 // Color array attribute buffer
