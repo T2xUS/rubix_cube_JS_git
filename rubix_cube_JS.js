@@ -23,13 +23,13 @@ var colors = [];
 // Spherical coordinate angles for rotating the cube
 // Distinguished with THETA_START and PHI_START, which are for the camera
 // dPHI and dTHETA are the incremental angles to add to THETA and PHI while rotating
-var THETA = 0;
-var PHI = 0;
+var THETA = radians(0);
+var PHI = radians(0);
 var dTHETA = 0;
 var dPHI = 0;
 
 // For rotating whole cube with mouse
-var AMORTIZATION = 1.0;
+var AMORTIZATION = 0.95; // used to scale down PHI and THETA to produce fading motion
 var heldDown = false; // checks if mouse button is held
 
 // Camera distance from object
@@ -39,8 +39,7 @@ var cameraRadius = 20.0;
 var cameraRadiusMin = 12.5;
 var cameraRadiusMax = 50.0;
 
-
-// Fixeed angles for lookAt
+// Fixed angles for lookAt
 var THETA_START = radians(45);
 var PHI_START = radians(45);
 
@@ -234,6 +233,9 @@ window.onload = function init()
         // Negative d means counterclockwise
         dTHETA = (e.pageX-startX)*2*Math.PI/canvas.width;
         dPHI = (e.pageY-startY)*2*Math.PI/canvas.height;
+
+        THETA = (THETA-dTHETA)%(2*Math.PI);
+        PHI = (PHI-dPHI)%(2*Math.PI);
 
         // Save ending position as next starting position
         startX = e.pageX;
@@ -626,20 +628,24 @@ function render()
     // World view matrix (involves translates and rotates for each cubelet)
     // Initialize to identity matrix
     worldViewMatrix = mat4();
+
+    // After releasing the mouse, want to produce a fading motion
+    if (!heldDown) {
+        dTHETA *= AMORTIZATION;
+        dPHI *= AMORTIZATION
+        THETA = (THETA-dTHETA)%(2*Math.PI);
+        PHI = (PHI-dPHI)%(2*Math.PI);
+    }
     
     // Model-view matrix
-    modelViewMatrix = lookAt(eye, at, up);
-
-    // Prepend model-view with the rotation matrix
+    // Includes the rotation matrix for rotating the whole cube
+    modelViewMatrix = mat4();
     // PHI is change in Y plane, so rotate about X
+    modelViewMatrix = mult(rotateY(degrees(THETA)), modelViewMatrix);
     // THETA is change in X plane, so rotate about Y
-    // Don't forget to convert to degrees
-    if (heldDown) {
-        THETA -= dTHETA;
-        PHI -= dPHI;
-    }
-    modelViewMatrix = mult(modelViewMatrix, mult(rotateY(degrees(THETA)),rotateX(degrees(PHI))));
-    
+    modelViewMatrix = mult(rotateX(degrees(PHI)), modelViewMatrix);
+    // Position camera
+    modelViewMatrix = mult(lookAt(eye, at, up), modelViewMatrix);
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix));
 
     // Projection matrix
