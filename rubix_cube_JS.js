@@ -770,7 +770,8 @@ function render()
         // This will continue to dequeue until the queue is empty
         if (!isRotating()) {
             dequeueRotation();
-           
+            // Check if it's solved after every turn
+            displaySolved();
         }
     } else {
         // If in stationary state, check if Rubik's cube is solved
