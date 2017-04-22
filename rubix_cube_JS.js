@@ -242,7 +242,7 @@ window.onload = function init()
         // Subtract PHI first, then check for discontinuity
         PHI = (PHI-dPHI)%(2*Math.PI);
 
-        //console.log("BEFORE",degrees(PHI))
+        console.log("BEFORE",degrees(PHI))
 
         // Jump over discontinuity
         // Want to avoid the region (179,181) for discontinuity at 180
@@ -272,7 +272,7 @@ window.onload = function init()
             if (dPHI > 0) {
                 PHI = radians(-181);
             } else if (dPHI < 0) {
-                PHI = radians(179);
+                PHI = radians(-179);
             }
         }
 
@@ -288,7 +288,7 @@ window.onload = function init()
             THETA = (THETA-dTHETA)%(2*Math.PI);
         }
 
-        //console.log("AFTER",degrees(PHI))
+        console.log("AFTER",degrees(PHI))
 
         // Save ending position as next starting position
         startX = e.pageX;
@@ -673,14 +673,14 @@ function render()
 {
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    // World view matrix (involves translates and rotates for each cubelet)
+    // Initialize to identity matrix
+    worldViewMatrix = mat4();
+
     // Set the camera position at each render (spherical coordinates)
     eye = vec3(cameraRadius*Math.sin(PHI)*Math.sin(THETA),
             cameraRadius*Math.cos(PHI),
             cameraRadius*Math.sin(PHI)*Math.cos(THETA));
-
-    // World view matrix (involves translates and rotates for each cubelet)
-    // Initialize to identity matrix
-    worldViewMatrix = mat4();
 
     // After releasing the mouse, want to produce a fading motion
     if (!heldDown) {
@@ -689,6 +689,8 @@ function render()
         dPHI *= AMORTIZATION
         
         PHI = (PHI-dPHI)%(2*Math.PI);
+
+        console.log('BEFORE AMOR', degrees(PHI))
 
         if (degrees(PHI) < 181 && degrees(PHI) > 179) {
             if (dPHI > 0) {
@@ -708,7 +710,7 @@ function render()
             if (dPHI > 0) {
                 PHI = radians(-181);
             } else if (dPHI < 0) {
-                PHI = radians(179);
+                PHI = radians(-179);
             }
         }
 
@@ -720,6 +722,7 @@ function render()
             THETA = (THETA-dTHETA)%(2*Math.PI);
         }
 
+        console.log('AFTER AMOR', degrees(PHI))
     }
     
     // Model-view matrix
