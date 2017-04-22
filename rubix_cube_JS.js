@@ -195,6 +195,15 @@ window.onload = function init()
     program = initShaders( gl, "vertex-shader", "fragment-shader" );
     gl.useProgram( program );
 
+    // Vertex array attribute buffer
+    var vBuffer = gl.createBuffer();
+    gl.bindBuffer( gl.ARRAY_BUFFER, vBuffer );
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW );
+
+    var vPosition = gl.getAttribLocation( program, "vPosition" );
+    gl.vertexAttribPointer( vPosition, 4, gl.FLOAT, false, 0, 0 );
+    gl.enableVertexAttribArray( vPosition );
+
     // Set up uniforms
     worldViewMatrixLoc = gl.getUniformLocation(program, "worldViewMatrix");
     modelViewMatrixLoc = gl.getUniformLocation(program, "modelViewMatrix");
@@ -230,6 +239,43 @@ window.onload = function init()
         dTHETA = (e.pageX-startX)*2*Math.PI/canvas.width;
         dPHI = (e.pageY-startY)*2*Math.PI/canvas.height;
 
+        // Subtract PHI first, then check for discontinuity
+        PHI = (PHI-dPHI)%(2*Math.PI);
+
+        //console.log("BEFORE",degrees(PHI))
+
+        // Jump over discontinuity
+        // Want to avoid the region (179,181) for discontinuity at 180
+        // When approaching the discontinuity from above (dPHI > 0), jump to 179
+        // and keep up vector positive (because 179 is before the flip)
+        // Up vector is negated when approaching discontinuity from below since 181 is post-flip
+        if (degrees(PHI) < 181 && degrees(PHI) > 179) {
+            if (dPHI > 0) {
+                PHI = radians(179);
+            } else if (dPHI < 0) {
+                PHI = radians(181);
+            }
+        }
+
+        // Similar idea with discontinuity at 0
+        // This time, negate up vector when approaching from above and vice versa
+        if (degrees(PHI) < 1 && degrees(PHI) > -1) {
+            if (dPHI > 0) {
+                PHI = radians(-1);
+            } else if (dPHI < 0) {
+                PHI = radians(1);
+            }
+        }
+
+        // Disconuity at -180
+        if (degrees(PHI) < -179 && degrees(PHI) > -181) {
+            if (dPHI > 0) {
+                PHI = radians(-181);
+            } else if (dPHI < 0) {
+                PHI = radians(179);
+            }
+        }
+
         // From degrees(PHI) E [-180, 0] U [180, 360], the up vector begins to point in
         // the opposite direction and the cube flips to preserve the up direction.
         // We don't want this to happen, so we flip the up vector when this happens
@@ -241,7 +287,8 @@ window.onload = function init()
             up = vec3(0.0, 1.0, 0.0);
             THETA = (THETA-dTHETA)%(2*Math.PI);
         }
-        PHI = (PHI-dPHI)%(2*Math.PI);
+
+        //console.log("AFTER",degrees(PHI))
 
         // Save ending position as next starting position
         startX = e.pageX;
@@ -599,7 +646,7 @@ function enqueueRotation(face, direction) {
             break;
     }
     rotationQueue.push([face,direction,axis]);
-    console.log("ENQUEUE", [face,direction,axis])
+    //console.log("ENQUEUE", [face,direction,axis])
 
     // Want to try start a rotation as soon as you push one on
     dequeueRotation();
@@ -616,7 +663,7 @@ function dequeueRotation() {
     rotationFace = nextRotation[0];
     rotationDir = nextRotation[1];
     rotationAxis = nextRotation[2];
-    console.log("DEQUEUE", [rotationFace,rotationDir,rotationAxis])
+    //console.log("DEQUEUE", [rotationFace,rotationDir,rotationAxis])
     // This triggers the render function to start drawing the rotation
     rotationAngle = 0;
     rotationSpeed = rotationSpeedTemp;
@@ -637,8 +684,34 @@ function render()
 
     // After releasing the mouse, want to produce a fading motion
     if (!heldDown) {
+
         dTHETA *= AMORTIZATION;
         dPHI *= AMORTIZATION
+        
+        PHI = (PHI-dPHI)%(2*Math.PI);
+
+        if (degrees(PHI) < 181 && degrees(PHI) > 179) {
+            if (dPHI > 0) {
+                PHI = radians(179);
+            } else if (dPHI < 0) {
+                PHI = radians(181);
+            }
+        }
+        if (degrees(PHI) < 1 && degrees(PHI) > -1) {
+            if (dPHI > 0) {
+                PHI = radians(-1);
+            } else if (dPHI < 0) {
+                PHI = radians(1);
+            }
+        }
+        if (degrees(PHI) < -179 && degrees(PHI) > -181) {
+            if (dPHI > 0) {
+                PHI = radians(-181);
+            } else if (dPHI < 0) {
+                PHI = radians(179);
+            }
+        }
+
         if ((PHI > Math.PI && PHI < 2*Math.PI) || (PHI < 0 && PHI > -Math.PI)) {
             up = vec3(0.0, -1.0, 0.0);
             THETA = (THETA+dTHETA)%(2*Math.PI);
@@ -646,7 +719,7 @@ function render()
             up = vec3(0.0, 1.0, 0.0);
             THETA = (THETA-dTHETA)%(2*Math.PI);
         }
-        PHI = (PHI-dPHI)%(2*Math.PI);
+
     }
     
     // Model-view matrix
@@ -742,15 +815,6 @@ function render()
                 var vColor = gl.getAttribLocation( program, "vColor" );
                 gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0 , 0);
                 gl.enableVertexAttribArray(vColor);
-
-                // Vertex array attribute buffer
-                var vBuffer = gl.createBuffer();
-                gl.bindBuffer( gl.ARRAY_BUFFER, vBuffer );
-                gl.bufferData( gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW );
-
-                var vPosition = gl.getAttribLocation( program, "vPosition" );
-                gl.vertexAttribPointer( vPosition, 4, gl.FLOAT, false, 0, 0 );
-                gl.enableVertexAttribArray( vPosition );
 
                 // Draw out the vertices
                 gl.drawArrays( gl.TRIANGLES, 0, NumVertices );
