@@ -239,42 +239,8 @@ window.onload = function init()
         dTHETA = (e.pageX-startX)*2*Math.PI/canvas.width;
         dPHI = (e.pageY-startY)*2*Math.PI/canvas.height;
 
-        // Subtract PHI first, then check for discontinuity
+        // Subtract PHI first, then check bounds (otherwise flip glitch)
         PHI = (PHI-dPHI)%(2*Math.PI);
-
-        console.log("BEFORE",degrees(PHI))
-
-        // Jump over discontinuity
-        // Want to avoid the region (179,181) for discontinuity at 180
-        // When approaching the discontinuity from above (dPHI > 0), jump to 179
-        // and keep up vector positive (because 179 is before the flip)
-        // Up vector is negated when approaching discontinuity from below since 181 is post-flip
-        if (degrees(PHI) < 181 && degrees(PHI) > 179) {
-            if (dPHI > 0) {
-                PHI = radians(179);
-            } else if (dPHI < 0) {
-                PHI = radians(181);
-            }
-        }
-
-        // Similar idea with discontinuity at 0
-        // This time, negate up vector when approaching from above and vice versa
-        if (degrees(PHI) < 1 && degrees(PHI) > -1) {
-            if (dPHI > 0) {
-                PHI = radians(-1);
-            } else if (dPHI < 0) {
-                PHI = radians(1);
-            }
-        }
-
-        // Disconuity at -180
-        if (degrees(PHI) < -179 && degrees(PHI) > -181) {
-            if (dPHI > 0) {
-                PHI = radians(-181);
-            } else if (dPHI < 0) {
-                PHI = radians(-179);
-            }
-        }
 
         // From degrees(PHI) E [-180, 0] U [180, 360], the up vector begins to point in
         // the opposite direction and the cube flips to preserve the up direction.
@@ -287,8 +253,6 @@ window.onload = function init()
             up = vec3(0.0, 1.0, 0.0);
             THETA = (THETA-dTHETA)%(2*Math.PI);
         }
-
-        console.log("AFTER",degrees(PHI))
 
         // Save ending position as next starting position
         startX = e.pageX;
@@ -677,42 +641,14 @@ function render()
     // Initialize to identity matrix
     worldViewMatrix = mat4();
 
-    // Set the camera position at each render (spherical coordinates)
-    eye = vec3(cameraRadius*Math.sin(PHI)*Math.sin(THETA),
-            cameraRadius*Math.cos(PHI),
-            cameraRadius*Math.sin(PHI)*Math.cos(THETA));
-
     // After releasing the mouse, want to produce a fading motion
+    // DO THIS BEFORE SETTING THE EYE BECAUSE EYE DEPENDS ON THETA AND PHI (otherwise flip glitch)
     if (!heldDown) {
 
         dTHETA *= AMORTIZATION;
-        dPHI *= AMORTIZATION
+        dPHI *= AMORTIZATION;
         
         PHI = (PHI-dPHI)%(2*Math.PI);
-
-        console.log('BEFORE AMOR', degrees(PHI))
-
-        if (degrees(PHI) < 181 && degrees(PHI) > 179) {
-            if (dPHI > 0) {
-                PHI = radians(179);
-            } else if (dPHI < 0) {
-                PHI = radians(181);
-            }
-        }
-        if (degrees(PHI) < 1 && degrees(PHI) > -1) {
-            if (dPHI > 0) {
-                PHI = radians(-1);
-            } else if (dPHI < 0) {
-                PHI = radians(1);
-            }
-        }
-        if (degrees(PHI) < -179 && degrees(PHI) > -181) {
-            if (dPHI > 0) {
-                PHI = radians(-181);
-            } else if (dPHI < 0) {
-                PHI = radians(-179);
-            }
-        }
 
         if ((PHI > Math.PI && PHI < 2*Math.PI) || (PHI < 0 && PHI > -Math.PI)) {
             up = vec3(0.0, -1.0, 0.0);
@@ -721,9 +657,13 @@ function render()
             up = vec3(0.0, 1.0, 0.0);
             THETA = (THETA-dTHETA)%(2*Math.PI);
         }
-
-        console.log('AFTER AMOR', degrees(PHI))
     }
+
+    // Set the camera position at each render (spherical coordinates)
+    eye = vec3(cameraRadius*Math.sin(PHI)*Math.sin(THETA),
+            cameraRadius*Math.cos(PHI),
+            cameraRadius*Math.sin(PHI)*Math.cos(THETA));
+
     
     // Model-view matrix
     modelViewMatrix = mat4();
